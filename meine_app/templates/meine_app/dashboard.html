@@ -1,0 +1,83 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <title>Mein Walkie-Talkie Dashboard</title>
+    <link rel="stylesheet" href="{% static 'css/header.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+</head>
+<body>
+
+    <header class="main-header">
+        <nav class="nav-buttons">
+            <a href="{% url 'login' %}">Logout</a>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'pushtotalk' %}">Push-to-Talk</a>
+        </nav>
+        <img src="{% static 'css/logo.png' %}" alt="Walki-Talki" class="logo-img" />
+    </header>
+
+    <main>
+        <h2>Dashboard</h2>
+        <p>Willkommen zurück, <b>{{ username }}</b>!</p>
+
+        <section>
+            <h3>Übersicht</h3>
+            <div class="stats-grid">
+                
+                <div class="stat-card">
+                    <span class="stat-label">Gesendete Nachrichten</span>
+                    <span class="stat-value">{{ gesendete_files|length }}</span>
+                    <br><br>
+                    {% if gesendete_files %}
+                        {% for file in gesendete_files %}
+                            <b>Eigene Aufnahme | {{ file.zeit }}</b><br>
+                            <audio controls src="/media/meine_aufnahmen/{{ file.name }}" style="width: 100%; margin-top: 5px;"></audio>
+                            
+                            <a href="{% url 'loesche_aufnahme' file.name %}" 
+                               onclick="return confirm('Wirklich diese Aufnahme löschen?');" 
+                                style="background-color: #dc3545; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; margin-top: 5px; margin-left: 5px;">
+                               Löschen
+                            </a>
+                            
+                            <hr style="border-color: #444; margin: 15px 0;"> 
+                        {% endfor %}
+                    {% else %}
+                        <p style="color: #ccc;">Noch keine Nachrichten gesendet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="stat-card">
+                    <span class="stat-label">Empfangene Nachrichten</span>
+                    <span class="stat-value">{{ nachrichten|length }}</span>
+                    <br><br>
+                    {% if nachrichten %}
+                        {% for file in nachrichten %}
+                            {% if "Walkie-Talkie" in file.absender %}
+                                <b>{{ file.absender }} | {{ file.zeit }}</b><br>
+                                <audio controls src="{{ file.url }}" style="width: 100%; margin-top: 5px;"></audio><br>
+                                
+                                <a href="{% url 'pushtotalk' %}?reply_to={{ file.zeit }}"
+                                   style="background-color: #007bff; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; margin-top: 5px;">
+                                   Antworten
+                                </a>
+
+                                <a href="{% url 'loesche_aufnahme' file.name %}" 
+                                   onclick="return confirm('Wirklich diese Nachricht löschen?');" 
+                                   style="background-color: #dc3545; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; margin-top: 5px; margin-left: 5px;">
+                                   Löschen
+                                </a>
+                                
+                                <hr style="border-color: #444; margin: 15px 0;"> 
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p style="color: #ccc;">Keine Nachrichten empfangen.</p>
+                    {% endif %}
+                </div>
+            </div> 
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,111 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <title>Push-to-Talk</title>
+    <link rel="stylesheet" href="{% static 'css/header.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" /> 
+</head>
+<body>
+    <header class="main-header">
+        <nav class="nav-buttons">
+            <a href="{% url 'login' %}">Logout</a>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'pushtotalk' %}">Push-to-Talk</a>
+        </nav>
+        <img src="{% static 'css/logo.png' %}" alt="Walki-Talki" class="logo-img" />
+    </header>
+
+    <main>
+        <section class="ptt-box">
+            {% if request.GET.reply_to %}
+                <div style="background-color: #2c3e50; border-left: 4px solid #007bff; padding: 12px; margin-bottom: 20px; border-radius: 4px; text-align: left;">
+                    <p style="margin: 0 0 5px 0; font-size: 0.9rem; color: #fff;">↩️ Du antwortest auf die Nachricht vom:</p>
+                    <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #007bff; font-weight: bold;">{{ request.GET.reply_to }}</p>
+                    <a href="{% url 'pushtotalk' %}" style="color: #ff4757; font-size: 0.8rem; text-decoration: none; font-weight: bold;">✖ Antwortmodus abbrechen</a>
+                </div>
+            {% endif %}
+
+            <h3>Push to Talk</h3>
+            <p>Halte den Button gedrückt, um zu sprechen.</p>
+
+            <button id="talkButton" class="talkButton" type="button" aria-label="Gedrückt halten zum Sprechen">
+                <p>🎙️ <br> HALTEN</p>
+            </button>
+
+            <p id="statusText" class="statusText">Drücke den Button, um das Mikrofon zu aktivieren.</p>
+        </section>
+    </main>
+
+    <script>
+        const talkButton = document.getElementById("talkButton");
+        const statusText = document.getElementById("statusText");
+        
+        let mediaRecorder;
+        let audioChunks = [];
+
+        async function initMicrophone() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+
+                mediaRecorder.onstop = () => {
+                    statusText.textContent = "Sende Audio...";
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    
+                    const formData = new FormData();
+                    formData.append('audio_data', audioBlob);
+
+                    fetch("{% url 'website_audio_upload' %}", {
+                        method: "POST",
+                        body: formData,
+                        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        statusText.textContent = data.status === "erfolg" ? "Erfolgreich gesendet!" : "Fehler beim Speichern.";
+                        setTimeout(() => { statusText.textContent = "Bereit"; }, 2000);
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        statusText.textContent = "Verbindungsfehler.";
+                    });
+                };
+                return true;
+            } catch (err) {
+                statusText.textContent = "Mikrofonzugriff verweigert!";
+                console.error(err);
+                return false;
+            }
+        }
+
+        talkButton.addEventListener("pointerdown", async (e) => {
+            e.preventDefault();
+            if (!mediaRecorder) {
+                const success = await initMicrophone();
+                if (!success) return;
+            }
+            if (mediaRecorder.state === "inactive") {
+                audioChunks = [];
+                mediaRecorder.start();
+                talkButton.classList.add("aktiv");
+                statusText.textContent = "Sprechen läuft...";
+            }
+        });
+
+        const stopRecording = (e) => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                talkButton.classList.remove("aktiv");
+            }
+        };
+
+        talkButton.addEventListener("pointerup", stopRecording);
+        talkButton.addEventListener("pointerleave", stopRecording);
+        talkButton.addEventListener("pointercancel", stopRecording);
+    </script>
+</body>
+</html>
